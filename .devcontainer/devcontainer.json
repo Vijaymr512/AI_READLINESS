@@ -1,13 +1,11 @@
 {
   "name": "AI Readiness Assessment",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
   "features": {
-    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
   },
-  "forwardPorts": [8000, 5173, 27017],
-  "postCreateCommand": "cd backend && pip install -r requirements.txt && cd ../frontend && npm install",
-  "postStartCommand": "docker run -d --name mongodb -p 27017:27017 mongo:7 2>/dev/null || true",
+  "forwardPorts": [8000, 5173],
+  "postCreateCommand": "cd /workspaces/ai-readliness/backend && pip install -r requirements.txt && cd /workspaces/ai-readliness/frontend && npm install",
   "customizations": {
     "vscode": {
       "extensions": [
