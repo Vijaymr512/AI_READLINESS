@@ -1,52 +1,98 @@
-from groq import Groq
 import os
 import json
+from groq import Groq
+from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# Clients
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-def generate_ai_report(data):
-    """
-    Generate structured AI report in JSON format
-    """
+def build_prompt(summary_data):
+    return f"""
+You are an expert AI system.
 
-    prompt = f"""
-You are a senior AI architect.
+Analyze the following software project summary and return STRICT JSON only.
 
-Analyze the given system assessment data and return a STRICT JSON response.
+DATA:
+{json.dumps(summary_data)}
 
-DO NOT return markdown.
-DO NOT return explanation.
-ONLY return valid JSON.
-
-Required JSON format:
-
+Return ONLY valid JSON:
 {{
-  "summary": "string",
-  "risks": ["string", "string"],
-  "recommendations": ["string", "string"],
-  "verdict": "Ready | Needs Improvement | Not Ready"
+  "summary": "Short evaluation",
+  "risks": ["Top risks"],
+  "recommendations": ["Top actions"],
+  "verdict": "Ready / Not Ready"
 }}
-
-SYSTEM DATA:
-{json.dumps(data)}
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
 
-    content = response.choices[0].message.content
+def generate_ai_report(report_data):
 
+    # 🔥 Reduce input size
+    summary_data = {
+        "score": report_data.get("score"),
+        "status": report_data.get("status"),
+        "top_risks": [
+            r.get("name") if isinstance(r, dict) else str(r)
+            for r in report_data.get("risks", [])[:3]
+        ],
+        "blockers": report_data.get("blockers", []),
+    }
+
+    prompt = build_prompt(summary_data)
+
+    # =========================
+    # 🧠 TRY GROQ FIRST
+    # =========================
     try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500,
+        )
+
+        content = response.choices[0].message.content.strip()
+        return parse_json(content)
+
+    except Exception as e:
+        print("⚠️ Groq failed:", str(e))
+
+    # =========================
+    # 🔁 FALLBACK → OPENAI
+    # =========================
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",   # cost-efficient + fast
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500,
+        )
+
+        content = response.choices[0].message.content.strip()
+        return parse_json(content)
+
+    except Exception as e:
+        print("❌ OpenAI fallback failed:", str(e))
+
+        return {
+            "summary": "AI generation failed",
+            "risks": [],
+            "recommendations": [],
+            "verdict": "Unknown"
+        }
+
+
+def parse_json(content):
+    try:
+        if content.startswith("```"):
+            content = content.strip("```").strip("json").strip()
         return json.loads(content)
-    except Exception:
-        # fallback if model messes up
+    except:
         return {
             "summary": content,
             "risks": [],

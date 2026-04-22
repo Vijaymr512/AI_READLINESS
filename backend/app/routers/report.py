@@ -197,3 +197,12 @@ async def download_report_html(report_id: str, user_id: str = Depends(get_curren
         content=html,
         headers={"Content-Disposition": f'inline; filename="report_{report_id[:8]}.html"'},
     )
+
+@router.get("/{report_id}/ai")
+async def get_ai_report(report_id: str, user_id: str = Depends(get_current_user_id)):
+    report = await assessment_repo.get_by_id(report_id, user_id)
+
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    return report.get("ai_report", {})
