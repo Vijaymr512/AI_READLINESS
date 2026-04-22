@@ -167,7 +167,8 @@ def run_assessment(
             print("🔥 AI REPORT GENERATED:", ai_report)
 
         except Exception as e:
-            log.error(f"AI generation failed: {e}")
+            print("🔥 GROQ ERROR:", str(e))   
+            raise e
             ai_report = {
                 "summary": "AI generation failed",
                 "risks": [],
@@ -180,6 +181,7 @@ def run_assessment(
 
         final_report = {
             **report,
+            "static_report": report,
             "ai_report": ai_report,   # 🔥 IMPORTANT
             "source_type": source_type,
             "source_value": source_value,
